@@ -66,12 +66,13 @@ class Resource(Entity):
 
         self.form_groups = []
 
-    def save(self, user={}, note='', resource_uuid=''):
+    def save(self, user={}, note='', resource_uuid='', makeuniqueid=True):
         """
         Saves a resource back to the db 
 
         """
-
+        print "make uniqueid", makeuniqueid
+        # makeuniqueid = not imported
         newentity = False
         timestamp = datetime.now()
 
@@ -80,9 +81,9 @@ class Resource(Entity):
         else:
             newentity = True
             self.entityid = resource_uuid
-
+        print "newentity:",newentity
         self.trim()
-        self._save() 
+        self._save(makeuniqueid=makeuniqueid) 
 
         if not newentity:
             diff = self.diff(entity_pre_save)
@@ -343,8 +344,18 @@ class Resource(Entity):
         document.numbers = []
 
         for entity in self.flatten():
+            if entity.value == "":
+                continue
             if entity.entityid != self.entityid:
+                for k,v in vars(entity).iteritems():
+                    print "             ",type(k),type(v)
+                    try:
+                        print "             ",len(k),len(v)
+                    except:
+                        pass
+                    print "             ",k,v
                 if entity.businesstablename == 'domains':
+                    
                     value = archesmodels.Values.objects.get(pk=entity.value)
                     entity_copy = entity.copy()
                     entity_copy.conceptid = value.conceptid_id

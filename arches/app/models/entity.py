@@ -93,6 +93,7 @@ class Entity(object):
         # get the entity value if any
         if entity.entitytypeid.businesstablename != None:
             themodel = self._get_model(entity.entitytypeid.businesstablename)
+            print pk
             themodelinstance = themodel.objects.get(pk = pk)
             columnname = entity.entitytypeid.getcolumnname()
 
@@ -124,7 +125,8 @@ class Entity(object):
         return self
         
     def create_uniqueids(self, entitytype, is_new_resource = False):  # Method that creates UniqueIDs and its correlated Entity when a new resource is saved, or else only a UniqueId when the entity is already present (this will happen if the entities are created via importer.py
-
+    
+        print "CREATING UNIQUE ID"
         uniqueid_node = settings.RESOURCE_TYPE_CONFIGS()[self.entitytypeid]['primary_name_lookup']['entity_type']
         if entitytype in settings.EAMENA_RESOURCES:
           type = settings.EAMENA_RESOURCES[entitytype]
@@ -158,15 +160,22 @@ class Entity(object):
         if is_new_resource:
           return entity2.entityid
                         
-    def _save(self):
+    def _save(self, makeuniqueid=True):
         """
         Saves an entity back to the db, returns a DB model instance, not an instance of self
 
         """
+        # print self.businesstablename, self.value
+        # if self.businesstablename != "" and self.value == "":
+            # print "should be skipping"
+            # return
+        
         type = ''
         is_new_entity = False
         is_new_resource = False
         entitytype = archesmodels.EntityTypes.objects.get(pk = self.entitytypeid)
+        # if entitytype.isresource:
+            # is_new_resource = True
         try:
             uuid.UUID(self.entityid)
         except(ValueError):
@@ -179,21 +188,35 @@ class Entity(object):
         entity.entitytypeid = entitytype
         entity.entityid = self.entityid
         entity.save()
+        print entitytype
+        print self.entityid
+        print "saved"
+        print is_new_resource
+        # is_new_resource = True
         if is_new_resource:
-          newid = self.create_uniqueids(str(entitytype), is_new_resource)
-          self.append_child(Entity().get(newid, archesmodels.Entities.objects.get(pk = entity.entityid)))
+          print "new resource block"
+          if makeuniqueid is True:
+              newid = self.create_uniqueids(str(entitytype), is_new_resource)
+              print newid
+              self.append_child(Entity().get(newid, archesmodels.Entities.objects.get(pk = entity.entityid)))
         else:
+          # print "entering"
           if str(entitytype) == 'EAMENA_ID.E42':
-            try:
-              archesmodels.UniqueIds.objects.get(pk=self.entityid)
-            except ObjectDoesNotExist:
-              self.create_uniqueids(str(entitytype), is_new_resource=False)
+            if makeuniqueid is True:
+                try:
+                  archesmodels.UniqueIds.objects.get(pk=self.entityid)
+                except ObjectDoesNotExist:
+                  
+                  self.create_uniqueids(str(entitytype), is_new_resource=False)
+          # print "exiting"
 
                                      
         columnname = entity.entitytypeid.getcolumnname()
         if columnname != None:
             themodel = self._get_model(entity.entitytypeid.businesstablename)
             themodelinstance = themodel()
+            for k,v in vars(entity).iteritems():
+                print "   ",k,v
             themodelinstance.entityid = entity
             self.businesstablename = entity.entitytypeid.businesstablename
 
@@ -210,7 +233,9 @@ class Entity(object):
             #                 self.add_child_entity(rule[0].entitytyperange_id, rule[0].propertyid_id, concept.id, '')
             #         elif len(self.child_entities) == 1:
             #             self.child_entities[0].value = concept.id
-            if not (isinstance(themodelinstance, archesmodels.Files)) and not (isinstance(themodelinstance, archesmodels.UniqueIds)):
+            if not (isinstance(themodelinstance, archesmodels.Files)) and not (
+                isinstance(themodelinstance, archesmodels.UniqueIds) and makeuniqueid is True):
+                
                 # Validating dates
                 if isinstance(themodelinstance, archesmodels.Dates) and is_new_entity ==True:
                   # don't attempt to parse string if this is already a datetime
@@ -243,12 +268,14 @@ class Entity(object):
                     self.value = themodelinstance.geturl()
                     self.label = themodelinstance.getname()
 
-
         for child_entity in self.child_entities:
-            child = child_entity._save()
+            if child_entity.businesstablename != "" and child_entity.value == "":
+                print "skip saving", child_entity.entityid
+                continue
+            child = child_entity._save(makeuniqueid=makeuniqueid)
             rule = archesmodels.Rules.objects.get(entitytypedomain = entity.entitytypeid, entitytyperange = child.entitytypeid, propertyid = child_entity.property)
             archesmodels.Relations.objects.get_or_create(entityiddomain = entity, entityidrange = child, ruleid = rule)
-        
+
         return entity
 
     def _delete(self, delete_root=False):

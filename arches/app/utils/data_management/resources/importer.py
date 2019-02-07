@@ -127,12 +127,13 @@ class ResourceLoader(object):
                 legacyid_to_entityid[resource.resource_id] = master_graph.entityid
             else:
                 new_resource = Resource(resource)
-                new_resource.save(user=self.user, note=load_id, resource_uuid=new_resource.entityid)
+                new_resource.save(user=self.user, note=load_id, resource_uuid=new_resource.entityid, makeuniqueid=False)
                 new_resource = Resource().get(new_resource.entityid)
-                try:
-                    new_resource.index()
-                except:
-                    print 'Could not index resource. This may be because the valueid of a concept is not in the database.'
+                # try:
+                new_resource.index()
+                # except Exception as e:
+                    # print e
+                    # print 'Could not index resource. This may be because the valueid of a concept is not in the database.'
                 legacyid_to_entityid[new_resource.entityid] = new_resource.entityid
 
             ret['successfully_saved'] += 1
