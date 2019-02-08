@@ -124,7 +124,7 @@ class Entity(object):
         
     def create_uniqueids(self, entitytype, is_new_resource = False):  # Method that creates UniqueIDs and its correlated Entity when a new resource is saved, or else only a UniqueId when the entity is already present (this will happen if the entities are created via importer.py
 
-        uniqueid_node = settings.RESOURCE_TYPE_CONFIGS()[self.entitytypeid]['primary_name_lookup']['entity_type']
+        uniqueid_node = settings.RESOURCE_TYPE_CONFIGS()[entitytype]['primary_name_lookup']['entity_type']
         if entitytype in settings.EAMENA_RESOURCES:
           type = settings.EAMENA_RESOURCES[entitytype]
         else:
@@ -157,7 +157,7 @@ class Entity(object):
         if is_new_resource:
           return entity2.entityid
                         
-    def _save(self):
+    def _save(self, parententitytype=''):
         """
         Saves an entity back to the db, returns a DB model instance, not an instance of self
 
@@ -186,7 +186,7 @@ class Entity(object):
             try:
               archesmodels.UniqueIds.objects.get(pk=self.entityid)
             except ObjectDoesNotExist:
-              self.create_uniqueids(str(entitytype), is_new_resource=False)
+              self.create_uniqueids(parententitytype, is_new_resource=False)
 
                                      
         columnname = entity.entitytypeid.getcolumnname()
@@ -243,7 +243,7 @@ class Entity(object):
                     self.label = themodelinstance.getname()
 
         for child_entity in self.child_entities:
-            child = child_entity._save()
+            child = child_entity._save(parententitytype=parententitytype)
             rule = archesmodels.Rules.objects.get(entitytypedomain = entity.entitytypeid, entitytyperange = child.entitytypeid, propertyid = child_entity.property)
             archesmodels.Relations.objects.get_or_create(entityiddomain = entity, entityidrange = child, ruleid = rule)
         

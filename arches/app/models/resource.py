@@ -82,7 +82,7 @@ class Resource(Entity):
             self.entityid = resource_uuid
 
         self.trim()
-        self._save() 
+        self._save(parententitytype=self.entitytypeid)
 
         if not newentity:
             diff = self.diff(entity_pre_save)
